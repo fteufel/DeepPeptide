@@ -1,0 +1,18 @@
+{
+   "embeddings_dir": "/data3/fegt_data/embeddings/",
+   "data_file": "data/uniprot_12052022_cv_5_50/labeled_sequences.csv",
+   "partitioning_file": "data/uniprot_12052022_cv_5_50/graphpart_assignments.csv",
+   "embedding": "precomputed",
+   "embedding_dim": 1280,
+   "model": "lstmcnncrf",
+   "out_dir": "hyperparam_runs_overlap_fixed/0/4",
+   "epochs": 50,
+   "batch_size": 10,
+   "lr": 0.00014556310709206306,
+   "dropout": 0.7583305053619342,
+   "conv_dropout": 0.23905226203770666,
+   "kernel_size": 4,
+   "num_filters": 128,
+   "hidden_size": 176,
+   "label_type": "multistate_with_propeptides"
+}
