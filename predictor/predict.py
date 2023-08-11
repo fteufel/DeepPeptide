@@ -63,7 +63,7 @@ def main():
     parser.add_argument('--fastafile', '-ff' ,'-fasta', type=str, help='Amino acid sequences to predict in FASTA format.', required=True)
     parser.add_argument('--output_dir', '-od', type=str, help='Path at which to save the output files. Will be created if not existing already.', required=True)
     parser.add_argument('--batch_size', '-bs', type=str, help='Batch size (number of sequences).', default=10)
-    parser.add_argument('--output_fmt', '-of', default='img')
+    parser.add_argument('--output_fmt', '-of', default='img', const='esm2', nargs='?', choices=['img', 'json'], help='The output format. img also includes the json file.')
     parser.add_argument('--esm', default='esm2', const='esm2', nargs='?', choices=['esm2', 'esm1b'], help ='Which ESM version to use.')
 
     args = parser.parse_args()
