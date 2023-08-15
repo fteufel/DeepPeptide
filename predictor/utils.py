@@ -273,7 +273,7 @@ def plot_predictions(probs: np.ndarray, preds:List[int], save_path: str):
     ax.set_ylabel('Probability')
     ax.yaxis.grid(False)
     ax.xaxis.grid()
-    ax.legend(loc='upper left', title='PeptideCRF')
+    ax.legend(loc='upper left')
     ax.tick_params(axis='x', bottom=False, labelbottom=False)
     sns.despine(ax=ax, bottom=False)
 
