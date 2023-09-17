@@ -65,6 +65,8 @@ def main():
     parser.add_argument('--batch_size', '-bs', type=str, help='Batch size (number of sequences).', default=10)
     parser.add_argument('--output_fmt', '-of', default='img', const='esm2', nargs='?', choices=['img', 'json'], help='The output format. img also includes the json file.')
     parser.add_argument('--esm', default='esm2', const='esm2', nargs='?', choices=['esm2', 'esm1b'], help ='Which ESM version to use.')
+    parser.add_argument('--esm_pt', default=None,  help ='Optional path to a ESM .pt checkpoint. If not specified, uses the default loading and caching of the esm package.')
+
 
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -81,7 +83,7 @@ def main():
     ids, seqs = utils.parse_fasta(args.fastafile)
     out_dict['INFO']['size'] = len(ids)
 
-    embeddings = utils.esm_embed(seqs, progress_bar=True, esm=args.esm)
+    embeddings = utils.esm_embed(seqs, progress_bar=True, esm=args.esm, local_esm_path=args.esm_pt)
     #embeddings = torch.rand(len(seqs), 500, 1280 )
     batches = utils.batchify(embeddings, args.batch_size)
 

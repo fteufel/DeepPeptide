@@ -16,6 +16,7 @@ This is the DeepPeptide predictor. It is an ensemble of the 20 models trained in
 | `--batch_size` | `-bs` | `10` | Batch size for prediction. Use this to tune memory usage according to your hardware. In general, larger batches are better, but a batch needs to fit the memory constraints of the given hardware. |
 | `--output_fmt` | `-of` | `img` | Output format. Can be `img`, which produces a plot for each sequence, or `json` which skips plot generation. |
 | `--esm` | | `esm2` | Which ESM model to use. Can be `esm1b` or `esm2`. Note that this refers to two separately trained versions of the DeepPeptide architecture. |
+| `--esm_pt` | | `None`| A path to an ESM .pt checkpoint file. By default, DeepPeptide downloads and caches the model files at ESM's default cache directory. You can use this if you want to manually control where the LM weights are stored. You need to ensure yourself that the manually specified checkpoint file matches the `--esm` argument. |
 
 ### Input format
 

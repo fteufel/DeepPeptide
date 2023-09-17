@@ -45,16 +45,18 @@ def parse_fasta(fastafile: str):
     return ids, seqs
 
 
-def esm_embed(sequences:List[str], repr_layers: int=33, progress_bar: bool = False, esm: str = 'esm2') -> List[torch.Tensor]:
+def esm_embed(sequences:List[str], repr_layers: int=33, progress_bar: bool = False, esm: str = 'esm2', local_esm_path: str = None) -> List[torch.Tensor]:
     '''Generate the esm-1b embeddings for a sequence.'''
     
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    # TODO we don't have a hosted lightweight version yet to use.
-    if esm == 'esm2':
+    if local_esm_path is not None:
+        esm_model, esm_alphabet = pretrained.load_model_and_alphabet(local_esm_path)
+    elif esm == 'esm2':
         esm_model, esm_alphabet = pretrained.load_model_and_alphabet('esm2_t33_650M_UR50D')
     elif esm =='esm1b':
         esm_model, esm_alphabet = pretrained.load_model_and_alphabet('esm1b_t33_650M_UR50S')
+
         # esm_args = torch.load(os.path.join(esm_dir, 'esm_model_args.pt'))
         # esm_alphabet = torch.load(os.path.join(esm_dir, 'esm_model_alphabet.pt'))
         # esm_model_state_dict = torch.load(os.path.join(esm_dir, 'esm_model_state_dict.pt'))
