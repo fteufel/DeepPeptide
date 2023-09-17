@@ -1,5 +1,7 @@
 # DeepPeptide
-Predicting cleaved peptides in protein sequences
+Predicting cleaved peptides in protein sequences.
+
+[![DOI](https://zenodo.org/badge/593202385.svg)](https://zenodo.org/badge/latestdoi/593202385)
 
 
 ### Training the model
