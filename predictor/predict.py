@@ -83,22 +83,29 @@ def main():
     ids, seqs = utils.parse_fasta(args.fastafile)
     out_dict['INFO']['size'] = len(ids)
 
-    embeddings = utils.esm_embed(seqs, progress_bar=True, esm=args.esm, local_esm_path=args.esm_pt)
+    # 2. prepare embedder and models
+    #embeddings = utils.esm_embed(seqs, progress_bar=True, esm=args.esm, local_esm_path=args.esm_pt)
+    embedder = utils.ESMEmbedder(args.esm, args.esm_pt)
     #embeddings = torch.rand(len(seqs), 500, 1280 )
-    batches = utils.batchify(embeddings, args.batch_size)
-
-
-    # 2. predict
+    batches = utils.batchify_sequences(seqs, args.batch_size)
     models = utils.load_models(MODEL_LIST_ESM1B if args.esm == 'esm1b' else MODEL_LIST_ESM2)
     crf = utils.combine_crf(models)
 
-    all_marginals = [] # list of len (n_seqs)
-    all_paths = [] # list of len (n_seqs)
+    # 3. predict
+    all_probs = [] # list of len (n_seqs)
+    all_peptides = [] # list of len (n_seqs)
+    all_propeptides = [] # list of len (n_seqs)
+    all_preds = [] # list of len (n_seqs)
 
     with torch.no_grad():
         for b in tqdm(batches, desc='Predicting...'):
 
-            embeddings, mask = b
+            seqs, mask = b
+            embeddings = embedder(seqs)
+
+            embeddings = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
+            mask = torch.nn.utils.rnn.pad_sequence(mask, batch_first=True)
+            
             embeddings.to(device)
             mask.to(device)
 
@@ -120,7 +127,16 @@ def main():
 
             batch_emissions = torch.stack(batch_emissions).mean(dim=0)
             ensemble_paths, ensemble_path_llhs = crf.decode(batch_emissions.to(device), mask.byte(), top_k=1)
-            all_paths.extend(ensemble_paths)
+
+            # postprocess on the fly
+            for path in ensemble_paths:
+                peptides = utils.convert_path_to_peptide_borders(path, start_state=1, stop_state=50, offset=1)
+                propeptides = utils.convert_path_to_peptide_borders(path, start_state=51, stop_state=100, offset=1)
+                preds = utils.simplify_preds([path])[0]
+                all_peptides.append(peptides)
+                all_propeptides.append(propeptides)
+                all_preds.append(preds)
+
 
             if compute_marginals:
                 batch_marginals = torch.stack(batch_marginals).mean(dim=0)
@@ -129,13 +145,17 @@ def main():
                     real_len = int(mask[i].sum().item())
                     marginal_list.append(batch_marginals[i, :real_len].cpu().numpy())
 
-                all_marginals.extend(marginal_list)
+                # marginal_list is len(batch)
+                probs = utils.simplify_probs(marginal_list)
+                all_probs.extend(probs)
+
+            
 
 
-    # 3. postprocess
-    for name, path in zip(ids, all_paths):
-        peptides = utils.convert_path_to_peptide_borders(path, start_state=1, stop_state=50, offset=1)
-        propeptides = utils.convert_path_to_peptide_borders(path, start_state=51, stop_state=100, offset=1)
+    # 3. make json-structured output.
+    for name, peptides, propeptides in zip(ids, all_peptides, all_propeptides):
+        # peptides = utils.convert_path_to_peptide_borders(path, start_state=1, stop_state=50, offset=1)
+        # propeptides = utils.convert_path_to_peptide_borders(path, start_state=51, stop_state=100, offset=1)
 
         out_dict['PREDICTIONS'][name] = {}
         out_dict['PREDICTIONS'][name]['peptides'] = []
@@ -144,19 +164,25 @@ def main():
         for i in range(len(propeptides)):
             out_dict['PREDICTIONS'][name]['peptides'].append({'start': propeptides[i][0], 'end': propeptides[i][1], 'type': 'Propeptide'})
 
-    preds = utils.simplify_preds(all_paths)
-
-    if compute_marginals:
-        probs = utils.simplify_probs(all_marginals)
 
 
     # 4. write output
     if args.output_fmt == 'img':
+
+        marginal_dict = {}
+        marginal_dict['INFO'] = out_dict['INFO'].copy()
+        marginal_dict['INFO']['dimensions'] = {0: 'None', 1: 'Peptide', 2: 'Propeptide'}
+        marginal_dict['PREDICTIONS'] = {}
+
         jobs = []
         with ProcessPoolExecutor() as executor:
 
-            for i in range(len(preds)):
-                pred, prob, name = preds[i], probs[i], ids[i]
+            for i in range(len(all_preds)):
+                pred, prob, name = all_preds[i], all_probs[i], ids[i]
+
+                marginal_dict['PREDICTIONS'][name] = {}
+                marginal_dict['PREDICTIONS'][name]['probabilities'] = prob.tolist()
+                marginal_dict['PREDICTIONS'][name]['predictions'] = pred
 
                 save_path = os.path.join(args.output_dir, f"{utils.slugify(name[1:])}.png") # skip > and replace non-alpha
                 out_dict['PREDICTIONS'][name]['figure'] = save_path
@@ -166,8 +192,9 @@ def main():
         for job in jobs:
             job.result()
 
-    print(f'Dumping JSON in {args.output_dir}')
-    json.dump(out_dict, open(os.path.join(args.output_dir, 'output.json'), 'w'))
+    print(f'Writing JSON in {args.output_dir}')
+    json.dump(out_dict, open(os.path.join(args.output_dir, 'peptide_predictions.json'), 'w'), indent=1)
+    json.dump(marginal_dict, open(os.path.join(args.output_dir, 'sequence_outputs.json'), 'w'), indent=1)
 
     write_fancy_output(out_dict)
 

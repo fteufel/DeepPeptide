@@ -44,7 +44,76 @@ def parse_fasta(fastafile: str):
 
     return ids, seqs
 
+# same as esm_embed(), but keep models loaded.
+class ESMEmbedder():
 
+    def __init__(self, esm: str = 'esm2', local_esm_path: str = None):
+
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+        if local_esm_path is not None:
+           self.esm_model, self.esm_alphabet = pretrained.load_model_and_alphabet(local_esm_path)
+        elif esm == 'esm2':
+            self.esm_model, self.esm_alphabet = pretrained.load_model_and_alphabet('esm2_t33_650M_UR50D')
+        elif esm =='esm1b':
+            self.esm_model, self.esm_alphabet = pretrained.load_model_and_alphabet('esm1b_t33_650M_UR50S')
+        else:
+            raise NotImplementedError(esm)
+
+        self.esm_model.eval()
+        self.esm_model.to(self.device)
+        self.batch_converter = self.esm_alphabet.get_batch_converter()
+        self.return_layer = 33 if esm == 'esm2' else 32
+
+        
+    def __call__(self, sequences: List[str], repr_layers: bool=False, progress_bar: bool = False):
+        '''Embed the provided list of sequences. Return a list of tensors.'''
+        embeddings = []
+        iterator = tqdm(sequences, desc='Embedding...', keep=False) if progress_bar else sequences
+        for sequence in iterator:
+
+            with torch.no_grad():
+
+                data = [
+                    ("protein1", sequence),
+                ]
+                labels, strs, toks = self.batch_converter(data)
+
+                # repr_layers_list = [
+                #     (i + esm_model.num_layers + 1) % (esm_model.num_layers + 1) for i in range(repr_layers)
+                # ]
+
+                out = None
+
+                toks = toks.to(self.device)
+
+                minibatch_max_length = toks.size(1)
+
+                tokens_list = []
+                end = 0
+                while end <= minibatch_max_length:
+                    start = end
+                    end = start + 1022
+                    if end <= minibatch_max_length:
+                        # we are not on the last one, so make this shorter
+                        end = end - 300
+                    tokens = self.esm_model(toks[:, start:end], repr_layers=[32,33], return_contacts=False)["representations"][self.return_layer]#[repr_layers - 1]
+                    tokens_list.append(tokens)
+
+                out = torch.cat(tokens_list, dim=1).cpu()
+
+                # set nan to zeros
+                out[out!=out] = 0.0
+
+                res = out.transpose(0,1)[1:-1] 
+                seq_embedding = res[:,0]
+
+                embeddings.append(seq_embedding)
+
+        return embeddings
+
+
+        
 def esm_embed(sequences:List[str], repr_layers: int=33, progress_bar: bool = False, esm: str = 'esm2', local_esm_path: str = None) -> List[torch.Tensor]:
     '''Generate the esm-1b embeddings for a sequence.'''
     
@@ -159,7 +228,7 @@ def combine_crf(models):
 
     return crf
 
-def batchify(embeddings, batch_size: int = 100):
+def batchify_embeddings(embeddings, batch_size: int = 100):
     '''Make padded batches from list of embedding tensors.'''
     b_start = 0
     b_end = batch_size
@@ -171,6 +240,21 @@ def batchify(embeddings, batch_size: int = 100):
         batch_masks = torch.nn.utils.rnn.pad_sequence(batch_masks, batch_first=True)
 
         batches.append((batch_embeddings, batch_masks))
+        b_start = b_start + batch_size
+        b_end = b_end + batch_size
+
+    return batches
+
+def batchify_sequences(sequences, batch_size: int = 100):
+    '''Make batches from list of sequences.'''
+    b_start = 0
+    b_end = batch_size
+    batches = []
+    while b_start<len(sequences):
+        batch_sequences = sequences[b_start:b_end]
+        batch_masks = [torch.ones(len(x)) for x in batch_sequences]
+
+        batches.append((batch_sequences, batch_masks))
         b_start = b_start + batch_size
         b_end = b_end + batch_size
 

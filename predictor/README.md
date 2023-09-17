@@ -25,7 +25,8 @@ The predictor takes fasta-formatted protein sequences as input. Multiline and 1-
 ### Output format
 
 `predict.py` produces the following files in the output directory:
-- `output.json`: A JSON file containing the peptide predictions for each protein in the input data.
+- `peptide_predictions.json`: A JSON file containing the peptide and propeptide predictions for each protein in the input data.
+- `sequence_outputs.json`: A JSON file containing the per-position probabilities and predictions for each protein in the input data.
 - `output.md`: A markdown file that displays predictions as tables and includes plots. This is the output that is displayed on the webserver.
 - `SEQUENCE_NAME.png`: A plot of the predictions for a single protein sequence.
 
