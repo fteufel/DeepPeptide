@@ -194,7 +194,8 @@ def main():
 
     print(f'Writing JSON in {args.output_dir}')
     json.dump(out_dict, open(os.path.join(args.output_dir, 'peptide_predictions.json'), 'w'), indent=1)
-    json.dump(marginal_dict, open(os.path.join(args.output_dir, 'sequence_outputs.json'), 'w'), indent=1)
+    if args.output_fmt == 'img':
+        json.dump(marginal_dict, open(os.path.join(args.output_dir, 'sequence_outputs.json'), 'w'), indent=1)
 
     write_fancy_output(out_dict)
 

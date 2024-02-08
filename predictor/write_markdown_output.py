@@ -18,7 +18,7 @@ def write_fancy_output(results, out_file: str = 'output.md'):
         output_md += f'#### {name}\n\n'
         #output_md += f'**Prediction:** {sequence["Prediction"]}\n\n'
         #output_md += f'{sequence["CS_pos"]}\n\n'
-        if preds['figure']:
+        if "figure" in preds:
             output_md += f'\n\n ![plot]({preds["figure"].split("/")[-1]})'
 
         output_md += f'\n\n'
@@ -26,7 +26,7 @@ def write_fancy_output(results, out_file: str = 'output.md'):
         output_md += f'\n\n'
 
         output_md += f'**Download:**'
-        if preds['figure']:
+        if "figure" in preds:
             output_md += f' [PNG]({preds["figure"].split("/")[-1]}) '
         # if sequence['Plot_eps']:
         #     output_md += f' [EPS]({sequence["Plot_eps"].split("/")[-1]}) / '
