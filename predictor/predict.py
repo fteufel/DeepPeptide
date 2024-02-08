@@ -90,6 +90,7 @@ def main():
     batches = utils.batchify_sequences(seqs, args.batch_size)
     models = utils.load_models(MODEL_LIST_ESM1B if args.esm == 'esm1b' else MODEL_LIST_ESM2)
     crf = utils.combine_crf(models)
+    crf.to(device)
 
     # 3. predict
     all_probs = [] # list of len (n_seqs)
@@ -106,8 +107,8 @@ def main():
             embeddings = torch.nn.utils.rnn.pad_sequence(embeddings, batch_first=True)
             mask = torch.nn.utils.rnn.pad_sequence(mask, batch_first=True)
             
-            embeddings.to(device)
-            mask.to(device)
+            embeddings = embeddings.to(device)
+            mask = mask.to(device)
 
             batch_emissions = []
             batch_marginals = []
@@ -126,7 +127,7 @@ def main():
                 batch_emissions.append(emissions.cpu())
 
             batch_emissions = torch.stack(batch_emissions).mean(dim=0)
-            ensemble_paths, ensemble_path_llhs = crf.decode(batch_emissions.to(device), mask.byte(), top_k=1)
+            ensemble_paths, ensemble_path_llhs = crf.decode(batch_emissions.to(device), mask.byte().to(device), top_k=1)
 
             # postprocess on the fly
             for path in ensemble_paths:
