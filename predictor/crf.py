@@ -534,7 +534,9 @@ class CRF(nn.Module):
         '''Return the top k viterbi paths for an input. NOTE this does not operate on batches.'''
         # follows https://gist.github.com/PetrochukM/afaa3613a99a8e7213d2efdd02ae4762
 
-        # TODO use mask.
+        # apply mask.
+        emissions = emissions[mask.bool()]
+
 
 
 
